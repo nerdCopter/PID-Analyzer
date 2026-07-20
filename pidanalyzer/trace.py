@@ -244,6 +244,9 @@ class Trace:
         tlen = len(self.data['time'])
         shift = int(flen / superpos)
         wins = int(tlen / shift) - superpos
+        # clamp: flen not a clean multiple of shift*superpos (e.g. low effective
+        # sample rate logs) can otherwise overrun the data on the last window(s)
+        wins = max(0, min(wins, int((tlen - flen) / shift) + 1)) if tlen >= flen else 0
         for i in np.arange(wins):
             for key in stackdict.keys():
                 stackdict[key].append(self.data[key][i * shift:i * shift + flen])

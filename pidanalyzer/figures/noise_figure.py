@@ -31,18 +31,23 @@ def create(path: str, name: str, header: dict, traces: List[Trace], lims: list) 
     # gridspec devides window into 25 horizontal, 31 vertical fields
     gs1 = GridSpec(25, 3 * 10 + 2, wspace=0.6, hspace=0.7, left=0.04, right=1., bottom=0.05, top=0.97)
 
-    max_noise_gyro = np.max(
-        [traces[0].noise_gyro['max'], traces[1].noise_gyro['max'], traces[2].noise_gyro['max']]) + 1.
-    max_noise_debug = np.max(
-        [traces[0].noise_debug['max'], traces[1].noise_debug['max'], traces[2].noise_debug['max']]) + 1.
-    max_noise_d = np.max([traces[0].noise_d['max'], traces[1].noise_d['max'], traces[2].noise_d['max']]) + 1.
+    # sparse/frame-loss logs can leave NaN in the noise spectra, which crashes LogNorm below;
+    # sanitizing to 0 falls through to the existing "no data" default range instead.
+    def _sanitize(x):
+        return np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+
+    max_noise_gyro = _sanitize(np.max(
+        [traces[0].noise_gyro['max'], traces[1].noise_gyro['max'], traces[2].noise_gyro['max']])) + 1.
+    max_noise_debug = _sanitize(np.max(
+        [traces[0].noise_debug['max'], traces[1].noise_debug['max'], traces[2].noise_debug['max']])) + 1.
+    max_noise_d = _sanitize(np.max([traces[0].noise_d['max'], traces[1].noise_d['max'], traces[2].noise_d['max']])) + 1.
 
     meanspec = np.array([traces[0].noise_gyro['hist2d_sm'].mean(axis=1).flatten(),
                          traces[1].noise_gyro['hist2d_sm'].mean(axis=1).flatten(),
                          traces[2].noise_gyro['hist2d_sm'].mean(axis=1).flatten()], dtype=np.float64)
     thresh = 100.
     mask = to_mask(traces[0].noise_gyro['freq_axis'].clip(thresh - 1e-9, thresh))
-    meanspec_max = np.max(meanspec * mask[:-1])
+    meanspec_max = _sanitize(np.max(meanspec * mask[:-1]))
 
     if not _check_lims_list(lims):
         lims = np.array([[1, max_noise_gyro], [1, max_noise_debug], [1, max_noise_d], [0, meanspec_max * 1.5]])
@@ -78,7 +83,7 @@ def create(path: str, name: str, header: dict, traces: List[Trace], lims: list) 
         ax0.set_title('gyro ' + tr.name, y=0.88, color='w')
         pc0 = plt.pcolormesh(tr.noise_gyro['throt_axis'], tr.noise_gyro['freq_axis'],
                              tr.noise_gyro['hist2d_sm'] + 1., norm=colors.LogNorm(vmin=lims[0, 0], vmax=lims[0, 1]),
-                             cmap=cmap)
+                             cmap=cmap, shading='auto')
         ax0.set_ylabel('frequency in Hz')
         ax0.grid()
         ax0.set_ylim(pltlim)
@@ -104,7 +109,7 @@ def create(path: str, name: str, header: dict, traces: List[Trace], lims: list) 
         ax1.set_title('debug ' + tr.name, y=0.88, color='w')
         pc1 = plt.pcolormesh(tr.noise_debug['throt_axis'], tr.noise_debug['freq_axis'],
                              tr.noise_debug['hist2d_sm'] + 1.,
-                             norm=colors.LogNorm(vmin=lims[1, 0], vmax=lims[1, 1]), cmap=cmap)
+                             norm=colors.LogNorm(vmin=lims[1, 0], vmax=lims[1, 1]), cmap=cmap, shading='auto')
         ax1.set_ylabel('frequency in Hz')
         ax1.grid()
         ax1.set_ylim(pltlim)
@@ -124,6 +129,11 @@ def create(path: str, name: str, header: dict, traces: List[Trace], lims: list) 
                                                       '- LPF only: set debug_mode = GYRO',
                      horizontalalignment='center', verticalalignment='center',
                      transform=ax1.transAxes, fontdict={'color': 'white'})
+        elif not header.get('correctdebugmode', True):
+            ax1.text(0.5, 0.5, 'warning: debug does not contain prefiltered gyro\n'
+                                                      'set debug_mode = GYRO_SCALED',
+                     horizontalalignment='center', verticalalignment='center',
+                     transform=ax1.transAxes, fontdict={'color': 'white'})
 
         if i < 2:
             # dterm plots
@@ -133,7 +143,7 @@ def create(path: str, name: str, header: dict, traces: List[Trace], lims: list) 
             axes_d.append(ax2)
             ax2.set_title('D-term ' + tr.name, y=0.88, color='w')
             pc2 = plt.pcolormesh(tr.noise_d['throt_axis'], tr.noise_d['freq_axis'], tr.noise_d['hist2d_sm'] + 1.,
-                                 norm=colors.LogNorm(vmin=lims[2, 0], vmax=lims[2, 1]), cmap=cmap)
+                                 norm=colors.LogNorm(vmin=lims[2, 0], vmax=lims[2, 1]), cmap=cmap, shading='auto')
             ax2.set_ylabel('frequency in Hz')
             ax2.grid()
             ax2.set_ylim(pltlim)

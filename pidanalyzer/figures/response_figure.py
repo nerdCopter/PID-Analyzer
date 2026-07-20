@@ -47,7 +47,7 @@ def create(path: str, name: str, header: dict, traces: List[Trace], old_style: b
             # response vs. time in color plot
             plt.setp(ax1.get_xticklabels(), visible=False)
             ax2 = plt.subplot(gs1[9:16, i * 10:i * 10 + 9], sharex=ax0)
-            plt.pcolormesh(trace.avr_t, trace.time_resp, np.transpose(trace.spec_sm), vmin=0, vmax=2.)
+            plt.pcolormesh(trace.avr_t, trace.time_resp, np.transpose(trace.spec_sm), vmin=0, vmax=2., shading='auto')
             plt.ylabel('response time in s')
             ax2.get_yaxis().set_label_coords(-0.1, 0.5)
             plt.xlabel('log time in s')
@@ -58,13 +58,14 @@ def create(path: str, name: str, header: dict, traces: List[Trace], old_style: b
             plt.title(trace.name + ' response', y=0.88, color='w')
             plt.pcolormesh(trace.thr_response['xscale'][:-1], trace.thr_response['yscale'][:-1], trace.thr_response['hist2d_norm'],
                            vmin=0.,
-                           vmax=2.)
+                           vmax=2.,
+                           shading='nearest')
             plt.ylabel('response time in s')
             ax2.get_yaxis().set_label_coords(-0.1, 0.5)
             plt.xlabel('throttle in %')
             plt.xlim([0., 100.])
 
-        cmap = plt.cm.get_cmap('Blues')
+        cmap = plt.colormaps['Blues']
         cmap._init()
         alphas = np.abs(np.linspace(0., 0.5, cmap.N, dtype=np.float64))
         cmap._lut[:-3, -1] = alphas
@@ -76,7 +77,7 @@ def create(path: str, name: str, header: dict, traces: List[Trace], old_style: b
                        + ' PID ' + header[trace.name + 'PID'])
 
         if trace.high_mask.sum() > 0:
-            cmap = plt.cm.get_cmap('Oranges')
+            cmap = plt.colormaps['Oranges']
             cmap._init()
             alphas = np.abs(np.linspace(0., 0.5, cmap.N, dtype=np.float64))
             cmap._lut[:-3, -1] = alphas
