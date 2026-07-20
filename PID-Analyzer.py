@@ -96,7 +96,10 @@ def main(args) -> int:
              'https://github.com/cleanflight/blackbox-tools/releases.')
             % blackbox_decode_path)
     common.BLACKBOX_DECODE_PATH = blackbox_decode_path
-    log.info('Decoding with %r' % blackbox_decode_path)
+    common.DECODER_TYPE = (common.detect_decoder_type(blackbox_decode_path)
+                           if args.decoder_type == 'auto' else args.decoder_type)
+    common.DECODER_FORCE_EXPORT = args.decoder_force_export
+    log.info('Decoding with %r (%s)' % (blackbox_decode_path, common.DECODER_TYPE))
     log.info(BANNER)
 
     if args.log_paths:
@@ -111,7 +114,11 @@ if __name__ == "__main__":
                         help='log file(s) to analyze or omit for interactive prompt')
     parser.add_argument('-n', '--name', default='tmp', help='plot name')
     parser.add_argument('--blackbox_decode', metavar="PATH", default=get_blackbox_decode_path(),
-                        help='path to blackbox_decode tool')
+                        help='path to blackbox_decode or bbl_parser tool')
+    parser.add_argument('--decoder-type', choices=['auto', 'blackbox_decode', 'bbl_parser'], default='auto',
+                        help='override --blackbox_decode tool auto-detection')
+    parser.add_argument('--decoder-force-export', action='store_true',
+                        help='bbl_parser only: bypass its smart session filtering (--force-export)')
     parser.add_argument('-d', '--hide', action='store_true',
                         help='hide plot window when done')
     parser.add_argument('-b', '--noise-bounds', default=''.join(repr(DEFAULT_NOISE_BOUNDS).split(' ')),

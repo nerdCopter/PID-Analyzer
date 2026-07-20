@@ -25,11 +25,22 @@ class BblLoader(Loader):
         return os.path.splitext(path)[1].lower() in LOG_EXTENSIONS
 
     def _read_headers(self, path: str) -> Tuple[dict]:
+        from ..common import DECODER_TYPE
         result = []
         csvfiles = self._bbl_to_csv()
         for i, csvpath in enumerate(csvfiles):
             _, ext = os.path.splitext(csvpath)
-            headers = headerdict(csvpath.replace(ext, ".01.csv"), i)
+            # blackbox_decode always appends ".01.csv"; bbl_parser omits the
+            # infix for a single-session input (which is always what it gets
+            # here, since sessions are already split out above) and may
+            # produce nothing at all if its own smart filtering skips this
+            # segment (exits 0 either way, so existence must be checked).
+            csv_suffix = ".csv" if DECODER_TYPE == 'bbl_parser' else ".01.csv"
+            guessed_csv = csvpath.replace(ext, csv_suffix)
+            if not os.path.isfile(guessed_csv):
+                log.info('Skipping filtered/empty session: %r' % csvpath)
+                continue
+            headers = headerdict(guessed_csv, i)
             with open(csvpath, 'rb') as f:
                 lines = f.readlines()
             # check for known keys and translate to useful ones.
@@ -75,17 +86,24 @@ class BblLoader(Loader):
                 newfile.write(firstline + split[i])
             bbl_sessions.append(temp_path)
 
-        from ..common import BLACKBOX_DECODE_PATH
+        from ..common import BLACKBOX_DECODE_PATH, DECODER_TYPE, DECODER_FORCE_EXPORT
         loglist = []
         for bbl_session in bbl_sessions:
             size_bytes = os.path.getsize(os.path.join(self.tmp_path, bbl_session))
             if size_bytes > LOG_MIN_BYTES:
                 try:
-                    subprocess.check_call([BLACKBOX_DECODE_PATH, bbl_session])
+                    if DECODER_TYPE == 'bbl_parser':
+                        cmd = [BLACKBOX_DECODE_PATH, '--output-dir', self.tmp_path]
+                        if DECODER_FORCE_EXPORT:
+                            cmd.append('--force-export')
+                        cmd.append(bbl_session)
+                    else:
+                        cmd = [BLACKBOX_DECODE_PATH, bbl_session]
+                    subprocess.check_call(cmd)
                     output_path = os.path.join(self.tmp_path, bbl_session)
                     loglist.append(output_path)
                 except subprocess.CalledProcessError:
-                    log.error('Error in blackbox_decode of %r' % bbl_session, exc_info=True)
+                    log.error('Error decoding %r' % bbl_session, exc_info=True)
             else:
                 # There is often a small bogus session at the start of the file.
                 log.warning('Ignoring BBL session %r, %dB < %dB.'

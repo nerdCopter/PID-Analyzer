@@ -2,9 +2,12 @@ import configparser
 import logging
 import os
 import platform
+import subprocess
 
 CONFIG_FILE = "config.ini"
 BLACKBOX_DECODE_PATH = None
+DECODER_TYPE = None
+DECODER_FORCE_EXPORT = False
 DEFAULT_NOISE_BOUNDS = [[1., 20.], [1., 20.], [1., 20.], [0., 4.]]
 # different versions of fw have different names for the same thing.
 FIELDS_MAP = {'dynThrPID': 'dynThrottle',
@@ -67,6 +70,19 @@ def get_blackbox_decode_path() -> str:
     config = configparser.ConfigParser()
     config.read(config_file_path)
     return config['paths']['blackbox_decode']
+
+
+def detect_decoder_type(path: str) -> str:
+    # bbl_parser (https://github.com/nerdCopter/bbl_parser) always prints a
+    # 'bbl_parser X.Y.Z ...' banner; blackbox_decode has no --version flag at
+    # all, so any probe failure/timeout/unexpected output means blackbox_decode.
+    try:
+        result = subprocess.run([path, '--version'], capture_output=True, text=True, timeout=5)
+        if result.stdout.startswith('bbl_parser '):
+            return 'bbl_parser'
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return 'blackbox_decode'
 
 
 def headerdict(log_file: str, log_number: int = 0) -> dict:
