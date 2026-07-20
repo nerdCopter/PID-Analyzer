@@ -15,6 +15,7 @@ from matplotlib import pyplot, pyplot as plt
 
 from pidanalyzer.common import *
 from pidanalyzer import common, loaders, BANNER
+from pidanalyzer.errors import InvalidDataError
 from pidanalyzer.plotting import show_plots
 
 
@@ -24,7 +25,11 @@ def analyze_file(path: str, plot_name: str, hide: bool, noise_bounds: list = DEF
         os.makedirs(tmp_path)
     loader = loaders.resolve(path, plot_name)
     for i, header in enumerate(loader.headers):
-        show_plots(plot_name, header, loader.data[i], noise_bounds)
+        try:
+            show_plots(plot_name, header, loader.data[i], noise_bounds)
+        except InvalidDataError as e:
+            log.warning('Skipping log %d: %s' % (i, e))
+            continue
         if hide:
             plt.cla()
             plt.clf()

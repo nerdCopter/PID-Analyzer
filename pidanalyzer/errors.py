@@ -19,9 +19,9 @@ class InvalidDataError(PidAnalyzerException):
     """
 
     def __init__(self, path: str, *args: object, **kwargs: object):
+        self._message = kwargs.pop("message", None)
         super().__init__(*args, **kwargs)
         self._path = path
-        self._message = kwargs.get("message")
 
     def __str__(self):
         s = "Invalid data: '%s'" % self._path

@@ -3,6 +3,8 @@ from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter1d
 from scipy.optimize import minimize
 
+from .errors import InvalidDataError
+
 
 def create_hist2d(x, y, weights, bins):  # bins[nx,ny]
     """
@@ -164,6 +166,11 @@ class Trace:
         self.name = self.data['name']
         self.time = self.data['time']
         self.dt = self.time[0] - self.time[1]
+        if self.dt == 0:
+            # degenerate/near-empty session (e.g. a corrupt or ground-test BBL
+            # segment that decoded to duplicate timestamps) - stepcalc()'s
+            # 1./tstep would be inf, crashing int(inf) downstream
+            raise InvalidDataError(self.name, message='zero-duration data (all timestamps identical)')
 
         self.input = self.data['input']
         # enable this to generate artifical gyro trace with known system response
