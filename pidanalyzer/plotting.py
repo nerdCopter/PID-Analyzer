@@ -11,9 +11,21 @@ def show_plots(name: str, header: dict, data: dict, noise_bounds: list):
     path = header["tempFile"]
     log.info("CSV file: " + path)
     log.info('Processing:')
-    traces_header, traces = _create_traces(header, data)
+    if 'traces' in data:
+        # loader already built Trace-ready per-axis dicts (e.g. PX4/ULog, which has
+        # no BF-style raw fields for _create_traces to parse)
+        traces_header = dict(header)
+        traces = []
+        for axisdata in data['traces']:
+            log.info(axisdata['name'] + '...   ')
+            traces.append(Trace(axisdata))
+    else:
+        traces_header, traces = _create_traces(header, data)
     response_figure.create(path, name, traces_header, traces)
-    noise_figure.create(path, name, traces_header, traces, noise_bounds)
+    if all(tr.has_noise_data for tr in traces):
+        noise_figure.create(path, name, traces_header, traces, noise_bounds)
+    else:
+        log.info('Skipping noise plot: no D-term/debug data available.')
 
 
 def _create_traces(header: dict, data: dict) -> Tuple[dict, List[Trace]]:
