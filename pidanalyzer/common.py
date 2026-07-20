@@ -5,7 +5,7 @@ import platform
 
 CONFIG_FILE = "config.ini"
 BLACKBOX_DECODE_PATH = None
-DEFAULT_NOISE_BOUNDS = [[1., 10.1], [1., 100.], [1., 100.], [0., 4.]]
+DEFAULT_NOISE_BOUNDS = [[1., 20.], [1., 20.], [1., 20.], [0., 4.]]
 # different versions of fw have different names for the same thing.
 FIELDS_MAP = {'dynThrPID': 'dynThrottle',
               'Craft name': 'craftName',

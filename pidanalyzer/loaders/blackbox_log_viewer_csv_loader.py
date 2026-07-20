@@ -68,6 +68,12 @@ class BlackboxLogViewerCsvLoader(Loader):
 
         result = {}
         result.update({'throttle': data['rcCommand[3]'].values, 'time_us': data[self.TIME_FIELD].values * 1e-6})
+        try:
+            # debug[3] holding data means debug_mode isn't set to something exposing
+            # prefiltered gyro (e.g. GYRO_SCALED) - flagged in the noise plot.
+            result.update({'debug3': data['debug[3]'].values})
+        except KeyError:
+            result.update({'debug3': np.zeros_like(data['rcCommand[3]'].values)})
         for i in ['0', '1', '2']:
             result.update({'rcCommand' + i: data['rcCommand[' + i + ']'].values})
             try:

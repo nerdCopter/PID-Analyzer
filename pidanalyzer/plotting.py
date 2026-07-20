@@ -1,5 +1,7 @@
 from typing import List, Tuple
 
+import numpy as np
+
 from .common import log
 from .figures import noise_figure, response_figure
 from .trace import Trace
@@ -19,6 +21,9 @@ def _create_traces(header: dict, data: dict) -> Tuple[dict, List[Trace]]:
     throttle = ((data['throttle'] - 1000.) / (float(header['maxThrottle']) - 1000.)) * 100.
     tracesdata = [{'name': 'roll'}, {'name': 'pitch'}, {'name': 'yaw'}]
     traces_header = dict(header)
+    # debug[3] holding data means the flightcontroller's debug_mode isn't exposing
+    # prefiltered gyro data, so noise_figure can't produce a meaningful debug plot.
+    traces_header.update({'correctdebugmode': not np.any(data.get('debug3', 0))})
     traces = []
 
     for i, axisdata in enumerate(tracesdata):
