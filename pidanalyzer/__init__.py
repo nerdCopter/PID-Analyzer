@@ -1,3 +1,3 @@
-__version__ = '0.52'
+__version__ = '0.60'
 
 BANNER = "PID Analyzer {}".format(__version__)

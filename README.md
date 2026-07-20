@@ -1,4 +1,8 @@
 
+### PID-Analyzer 0.60 changes:
+- Consolidated years of scattered fork fixes and dependency updates into one maintained branch (see "Changes in this fork" below)
+- Modernized for current numpy/scipy/pandas/matplotlib; added PX4/ULog support; added bbl_parser as an alternative to blackbox_decode
+
 ### PID-Analyzer 0.52 changes:
 - Fixed the noise plot ranges for better visual comparability with option for custom or auto range
 - slight change to s/n in deconvolution: Gaussian instead of digital s/n
@@ -56,19 +60,13 @@ pacman -S python-matplotlib python-numpy python-scipy python-pandas
 
 ## How to use this program:
 1. Record your log. Logs of 20s seem to give sufficient statistics. If it's slightly windy, longer logs can still give reasonable results. You can record multiple logs in one session: Each entry will yield a seperate plot.
-2. Place your logfiles, `blackbox_decode.exe` ([Windows download](https://github.com/cleanflight/blackbox-tools/releases/download/v0.4.3/blackbox-tools-0.4.3-windows.zip)) and `PID-Analyzer.exe` ([Windows download](https://github.com/Plasmatree/PID-Analyzer/releases)) in the same folder. You can also specify where to find these executables via command-line flags.
-3. Run `PID-Analyzer.exe` (this takes some seconds, it sets up a complete virtual python environment). Either interactively enter your `.BBL` files (drop one or more logs into cmd), or pass your `.BBL` file(s) via flags, like `PID-Analyzer --log one.BBL --log two.BBL` directly when run in cli mode.
-4. The logs are separated into temp files, read, analyzed and temp files deleted again.
-5. A plot window opens and a `.png` image is saved automatically in the folder correspoding to you entered name (default is `\tmp`).
+2. Get a decoder: either `blackbox_decode` ([Betaflight blackbox-log-viewer](https://github.com/betaflight/blackbox-log-viewer) or [iNavFlight blackbox-tools](https://github.com/iNavFlight/blackbox-tools)) or [bbl_parser](https://github.com/nerdCopter/bbl_parser) — either is auto-detected (see above). Point PID-Analyzer at it via `config.ini` or `--blackbox_decode PATH`.
+3. Run `python3 PID-Analyzer.py <log file(s)>` (or `./PID-Analyzer.py <log file(s)>` on Linux/macOS). Either pass your `.BBL`/`.BFL` file(s) directly as arguments, or omit them for an interactive prompt.
+4. The logs are separated into temp files, read, analyzed, and a `.png` image is saved automatically in the folder corresponding to your entered name (default is `tmp`).
 
-The windows executable includes a virtual python environment and only requires you to drag and drop your Betaflight blackbox logfile into the cmd window.
+In case of problems, please report including the log file.
 
-
-In case of problems (if the cmd closes for example), please report including the log file.
-
-Tested on Win7/10 and MacOS 10.10, with 3.15/3.2/3.3 logs.
-
-
+Tested on current Linux with Python 3.10+ and current numpy/scipy/pandas/matplotlib; should work on any platform with a working Python 3 + matplotlib install.
 
 Happy tuning,
 
@@ -95,21 +93,28 @@ Flo
 ### Usage
 
 ```bash
-usage: PID-Analyzer.py [-h] [-n NAME] [--blackbox_decode PATH] [-d]
-                       [-b NOISE_BOUNDS]
+usage: PID-Analyzer.py [-h] [-n NAME] [--blackbox_decode PATH]
+                       [--decoder-type {auto,blackbox_decode,bbl_parser}]
+                       [--decoder-force-export] [-d] [-b NOISE_BOUNDS]
                        LOG_PATHS
 
 positional arguments:
   LOG_PATHS             log file(s) to analyze or omit for interactive prompt
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
-  -n NAME, --name NAME  plot name (default: tmp)
+  -n, --name NAME       plot name (default: tmp)
   --blackbox_decode PATH
-                        path to blackbox_decode tool (default:
-                        /home/kiri/Projects/PID-Analyzer/blackbox_decode)
+                        path to blackbox_decode or bbl_parser tool (default:
+                        <repo-root>/blackbox_decode)
+  --decoder-type {auto,blackbox_decode,bbl_parser}
+                        override --blackbox_decode tool auto-detection
+                        (default: auto)
+  --decoder-force-export
+                        bbl_parser only: bypass its smart session filtering
+                        (--force-export) (default: False)
   -d, --hide            hide plot window when done (default: False)
-  -b NOISE_BOUNDS, --noise-bounds NOISE_BOUNDS
+  -b, --noise-bounds NOISE_BOUNDS
                         bounds of plots in noise analysis (use "auto" for
                         autoscaling) (default:
                         [[1.0,20.0],[1.0,20.0],[1.0,20.0],[0.0,4.0]])
