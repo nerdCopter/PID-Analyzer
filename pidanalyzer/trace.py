@@ -154,8 +154,11 @@ class Trace:
 
     def __init__(self, data):
         self.data = data
-        self.input = equalize(data['time'], pid_in(data['p_err'], data['gyro'], data['P']))[1]  # /20.
-        self.data.update({'input': pid_in(data['p_err'], data['gyro'], data['P'])})
+        if 'input' not in self.data:
+            # loaders that supply the rate setpoint directly (e.g. PX4/ULog) have no
+            # p_err/P to derive it from - only BF-style p_err/P data needs this step
+            self.input = equalize(data['time'], pid_in(data['p_err'], data['gyro'], data['P']))[1]  # /20.
+            self.data.update({'input': pid_in(data['p_err'], data['gyro'], data['P'])})
         self.equalize_data()
 
         self.name = self.data['name']
@@ -195,24 +198,27 @@ class Trace:
         if self.high_mask.sum() > 0:
             self.resp_high = self.weighted_mode_avr(self.spec_sm, self.high_mask * self.toolow_mask, [-1.5, 3.5], 1000)
 
-        self.noise_winlen = stepcalc(self.time, Trace.noise_framelen)
-        self.noise_stack = self.winstacker({'time': [], 'gyro': [], 'throttle': [], 'd_err': [], 'debug': []},
-                                           self.noise_winlen, Trace.noise_superpos)
-        self.noise_win = np.hanning(self.noise_winlen)
+        # loaders without D-term/debug data (e.g. PX4/ULog) can't feed noise analysis
+        self.has_noise_data = 'd_err' in self.data
+        if self.has_noise_data:
+            self.noise_winlen = stepcalc(self.time, Trace.noise_framelen)
+            self.noise_stack = self.winstacker({'time': [], 'gyro': [], 'throttle': [], 'd_err': [], 'debug': []},
+                                               self.noise_winlen, Trace.noise_superpos)
+            self.noise_win = np.hanning(self.noise_winlen)
 
-        self.noise_gyro = stackspectrum(self.noise_stack['time'], self.noise_stack['throttle'],
-                                        self.noise_stack['gyro'], self.noise_win)
-        self.noise_d = stackspectrum(self.noise_stack['time'], self.noise_stack['throttle'],
-                                     self.noise_stack['d_err'], self.noise_win)
-        self.noise_debug = stackspectrum(self.noise_stack['time'], self.noise_stack['throttle'],
-                                         self.noise_stack['debug'], self.noise_win)
-        if self.noise_debug['hist2d'].sum() > 0:
-            # mask 0 entries
-            thr_mask = self.noise_gyro['throt_hist_avr'].clip(0, 1)
-            self.filter_trans = np.average(self.noise_gyro['hist2d'], axis=1, weights=thr_mask) / \
-                                np.average(self.noise_debug['hist2d'], axis=1, weights=thr_mask)
-        else:
-            self.filter_trans = self.noise_gyro['hist2d'].mean(axis=1) * 0.
+            self.noise_gyro = stackspectrum(self.noise_stack['time'], self.noise_stack['throttle'],
+                                            self.noise_stack['gyro'], self.noise_win)
+            self.noise_d = stackspectrum(self.noise_stack['time'], self.noise_stack['throttle'],
+                                         self.noise_stack['d_err'], self.noise_win)
+            self.noise_debug = stackspectrum(self.noise_stack['time'], self.noise_stack['throttle'],
+                                             self.noise_stack['debug'], self.noise_win)
+            if self.noise_debug['hist2d'].sum() > 0:
+                # mask 0 entries
+                thr_mask = self.noise_gyro['throt_hist_avr'].clip(0, 1)
+                self.filter_trans = np.average(self.noise_gyro['hist2d'], axis=1, weights=thr_mask) / \
+                                    np.average(self.noise_debug['hist2d'], axis=1, weights=thr_mask)
+            else:
+                self.filter_trans = self.noise_gyro['hist2d'].mean(axis=1) * 0.
 
     def toy_out(self, inp, delay=0.01, length=0.01, noise=5., mode='normal', sinfreq=100.):
         # generates artificial output for benchmarking
